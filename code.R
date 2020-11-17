@@ -7,6 +7,7 @@ fredr_set_key("xyz")
 
 # Taking a look at unemployment
 #------------------------------------
+
 u3 <- fredr(
   series_id = "UNRATE"
 ) %>% 
@@ -205,8 +206,7 @@ ggsave("unemployment7.png", path="./plots/", width=12, height=7)
 
 
 # Okun's Law
-#--------------------------
-
+#------------------------------------
 
 gdp <- fredr(
   series_id = "GDP"
@@ -325,4 +325,117 @@ png(filename = "./plots/okun5.png", height=700, width=700)
 corrplot(data_cor)
 dev.off()
 
-#--------------------------
+#------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Minimum wage
+#------------------------------------
+minwage <- fredr(
+  series_id = "FEDMINNFRWG"
+) %>% 
+  rename("Minimum wage"=value) %>% 
+  select(-series_id)
+
+cpi_annual <- fredr(
+  series_id = "CPIAUCSL",
+  frequency = "a"
+) %>% 
+  rename("CPI"=value) %>% 
+  select(-series_id)
+
+cpi_monthly <- fredr(
+  series_id = "CPIAUCSL"
+) %>% 
+  rename("CPI"=value) %>% 
+  select(-series_id)
+
+# Adjust monthly data for inflation
+base_inflation_factor = cpi_monthly %>%
+  filter(date=="2020-10-01")
+base_inflation_factor <- base_inflation_factor[["CPI"]]
+
+cpi_monthly <- cpi_monthly %>%
+  mutate(
+    inflation_factor = 1/(CPI/base_inflation_factor)
+    )
+
+minwage <- minwage %>%
+  left_join(cpi_monthly, by="date") %>%
+  mutate("Minimum wage (adjusted for inflation)" = `Minimum wage`*inflation_factor)
+
+# Calculate minimum wage increases
+base_inflation_factor = cpi_annual %>%
+  filter(year(date)==2019)
+base_inflation_factor <- base_inflation_factor[["CPI"]]
+
+cpi_annual <- cpi_annual %>%
+  mutate(
+    inflation_factor = 1/(CPI/base_inflation_factor),
+    year = year(date)
+  )
+
+minwage_increases <- minwage %>%
+  group_by(`Minimum wage`) %>%
+  summarize(from=min(date)) %>%
+  filter(year(from)>=1945) %>%
+  mutate(
+    increase=`Minimum wage`-lag(`Minimum wage`),
+    year = year(from)
+    ) %>%
+  filter(!is.na(increase)) %>%
+  left_join(cpi_annual, by="year") %>%
+  mutate("minimum wage increase in USD\n(adjusted for inflation)" = increase*inflation_factor) %>%
+  select(from, "minimum wage increase in USD\n(adjusted for inflation)")
+
+# Utility function for facetting later on
+set_category <- function(measure){
+  res = case_when(
+    measure %in% c("U-3 unemployment rate","U-6 unemployment rate") ~ "Unemployment in %",
+    measure %in% c("GDP", "Potential GDP") ~ "GDP in billion USD",
+    measure %in% c("Minimum wage","Minimum wage (adjusted for inflation)") ~ "Minimum wage in USD"
+  )
+  return(res)
+}
+
+# Plot data calculation + plotting after that
+plot_data <- u3 %>%
+  full_join(u6, by="date") %>%
+  full_join(gdp, by="date") %>%
+  full_join(potential_gdp, by="date") %>%
+  full_join(minwage, by="date") %>%
+  pivot_longer(c("U-3 unemployment rate","U-6 unemployment rate",
+                 "GDP","Potential GDP", "Minimum wage", 
+                 "Minimum wage (adjusted for inflation)"),
+               names_to="measure", values_to="value", values_drop_na=TRUE) %>%
+  filter(year(date)>=1948 & year(date)<2021) %>%
+  mutate(category = set_category(measure)) %>%
+  select(date, measure, value, category)
+
+ggplot(data=plot_data)+
+  geom_line(aes(x=date, y=value, color=measure)) +
+  facet_wrap(~ category, nrow=3, scales="free_y") +
+  geom_vline(data=minwage_increases, 
+             aes(xintercept=from,
+                 alpha=`minimum wage increase in USD\n(adjusted for inflation)`),
+             color='#009E73') +
+  labs(
+    title = "Minimum wage, GDP and unemployment in the US over time",
+    x = "Date",
+    y = ""
+  )
+
+ggsave("minwage4.png", path="./plots/", width=12, height=7)
+  
+#------------------------------------
