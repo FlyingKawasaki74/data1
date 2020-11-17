@@ -78,6 +78,11 @@ recessions = as_tibble(
   colClasses=c('Date', 'Date'), header=TRUE)
 )
 
+extremes <- plot_data %>%
+  group_by(measure) %>%
+  filter(value == max(value) | value == min(value)) %>%
+  distinct(measure, value, .keep_all=TRUE)
+
 ggplot(data=plot_data)+
   geom_line(aes(x=date, y=value, color=measure)) +
   labs(
@@ -85,11 +90,16 @@ ggplot(data=plot_data)+
     x = "Date",
     y = "Percentage of unemployed people /\n Percentage of people in the labor force"
   ) + 
-  geom_rect(data=recessions, aes(xmin=Peak, xmax=Trough, ymin=-Inf, ymax=+Inf), fill='pink', alpha=0.4)
+  geom_rect(data=recessions, aes(xmin=Peak, xmax=Trough, ymin=-Inf, ymax=+Inf), fill='pink', alpha=0.4) +
+  geom_point(data=extremes, aes(x=date, y=value, color=measure), size=3) +
+  geom_text(data=extremes, aes(x=date, y=value, label=value))
 
 ggsave("unemployment3.png", path="./plots/", width=12, height=7)
 
 # Plot 4: Corona crisis zoom in
+extremes <- extremes %>%
+  filter(year(date)==2020)
+
 current_plot_data <- plot_data %>% 
   filter(year(date)==2020)
 
@@ -103,7 +113,9 @@ ggplot(data=current_plot_data)+
     x = "Date",
     y = "Percentage of unemployed people /\n Percentage of people in the labor force"
   ) + 
-  geom_rect(data=current_recessions, aes(xmin=Peak, xmax=Trough, ymin=-Inf, ymax=+Inf), fill='pink', alpha=0.4)
+  geom_rect(data=current_recessions, aes(xmin=Peak, xmax=Trough, ymin=-Inf, ymax=+Inf), fill='pink', alpha=0.4) +
+  geom_point(data=extremes, aes(x=date, y=value, color=measure), size=3) +
+  geom_text(data=extremes, aes(x=date, y=value, label=value))
 
 ggsave("unemployment4.png", path="./plots/", width=12, height=7)
 
