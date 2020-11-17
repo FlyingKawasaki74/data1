@@ -423,6 +423,67 @@ plot_data <- u3 %>%
   mutate(category = set_category(measure)) %>%
   select(date, measure, value, category)
 
+# Possible improvement: Set origin of x scales https://community.rstudio.com/t/set-the-origin-for-scale-x-date-date-breaks/43926/4
+# Plot 1: Minimum wage incl. adjusted for inflation
+current_plot_data <- plot_data %>%
+  filter(category == "Minimum wage in USD")
+
+extremes <- current_plot_data %>%
+  group_by(measure) %>%
+  filter(value == max(value) | value == min(value)) %>%
+  distinct(measure, value, .keep_all=TRUE) %>%
+  mutate(value = round(value, digits=2))
+
+ggplot(data=current_plot_data)+
+  geom_line(aes(x=date, y=value, color=measure)) +
+  geom_point(data=extremes, aes(x=date, y=value, color=measure), size=3) +
+  geom_text(data=extremes, aes(x=date, y=value, label=value)) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%y") +
+  labs(
+    title = "Minimum wage in the US over time",
+    x = "Date",
+    y = "Minimum wage in USD"
+  )
+
+ggsave("minwage1.png", path="./plots/", width=12, height=7)
+
+# Plot 2: Add lines marking intensity of minimum wage increase
+ggplot(data=current_plot_data)+
+  geom_line(aes(x=date, y=value, color=measure)) +
+  geom_vline(data=minwage_increases, 
+             aes(xintercept=from,
+                 alpha=`minimum wage increase in USD\n(adjusted for inflation)`),
+             color='#009E73') +
+  scale_x_date(date_breaks = "4 years", date_labels = "%y") +
+  labs(
+    title = "Minimum wage in the US over time",
+    x = "Date",
+    y = "Minimum wage in USD"
+  )
+
+ggsave("minwage2.png", path="./plots/", width=12, height=7)
+
+# Plot 3: Add GDP data
+current_plot_data <- plot_data %>%
+  filter(category %in% c("Minimum wage in USD","GDP in billion USD"))
+
+ggplot(data=current_plot_data)+
+  geom_line(aes(x=date, y=value, color=measure)) +
+  facet_wrap(~ category, nrow=3, scales="free_y") +
+  geom_vline(data=minwage_increases, 
+             aes(xintercept=from,
+                 alpha=`minimum wage increase in USD\n(adjusted for inflation)`),
+             color='#009E73') +
+  scale_x_date(date_breaks = "4 years", date_labels = "%y") +
+  labs(
+    title = "Minimum wage and GDP in the US over time",
+    x = "Date",
+    y = ""
+  )
+
+ggsave("minwage3.png", path="./plots/", width=12, height=7)
+
+# Plot 4: Monster plot
 ggplot(data=plot_data)+
   geom_line(aes(x=date, y=value, color=measure)) +
   facet_wrap(~ category, nrow=3, scales="free_y") +
@@ -430,6 +491,7 @@ ggplot(data=plot_data)+
              aes(xintercept=from,
                  alpha=`minimum wage increase in USD\n(adjusted for inflation)`),
              color='#009E73') +
+  scale_x_date(date_breaks = "4 years", date_labels = "%y") +
   labs(
     title = "Minimum wage, GDP and unemployment in the US over time",
     x = "Date",
