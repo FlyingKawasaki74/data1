@@ -107,6 +107,76 @@ ggplot(data=current_plot_data)+
 
 ggsave("unemployment4.png", path="./plots/", width=12, height=7)
 
+# Plot 5: Monthly avg. unemployment rate
+current_plot_data <- plot_data %>%
+  filter(measure != "Labor force participation rate") %>%
+  mutate(
+    month = month(date, label=TRUE)
+  )
+
+# https://stackoverflow.com/questions/48860158/changing-ggplot2facet-wrap-title-from-the-default
+ggplot(current_plot_data, aes(x=month, y= value)) +
+  geom_boxplot(aes(group=month))+
+  facet_wrap(~ measure, nrow=2, labeller = labeller(measure = 
+                                                      c("U-3 unemployment rate" = "U-3 unemployment rate (1948-2020)",
+                                                        "U-6 unemployment rate" = "U-6 unemployment rate (1994-2020)")
+  )) +
+  labs(
+    title = "Average monthly unemployment in the US",
+    x = "Month",
+    y = "Average monthly unemployment rate in %"
+  )
+
+ggsave("unemployment5.png", path="./plots/", width=12, height=7)
+
+# Plot 6: Monthly deviation from yearly avg
+current_plot_data <- plot_data %>%
+  filter(measure != "Labor force participation rate") %>%
+  mutate(
+    month = month(date, label=TRUE),
+    year = year(date)
+  ) %>%
+  group_by(year, measure) %>%
+  mutate(
+    yearly_avg = mean(value),
+    monthly_deviation_from_mean = (value-yearly_avg)*100
+  )
+
+ggplot(current_plot_data, aes(x=month, y= monthly_deviation_from_mean)) +
+  geom_boxplot(aes(group=month))+
+  facet_wrap(~ measure, nrow=2, labeller = labeller(measure = 
+                                                      c("U-3 unemployment rate" = "U-3 unemployment rate (1948-2020)",
+                                                        "U-6 unemployment rate" = "U-6 unemployment rate (1994-2020)")
+  )) +
+  labs(
+    title = "Average monthly deviaton from yearly unemployment rate in the US",
+    subtitle = "e.g. if the avg. unemployment rate in 2019 is 5%, but for February it is at 7%, the deviation is +2%",
+    x = "Month",
+    y = "Average monthly deviation from yearly unemployment rate in %"
+  )
+
+ggsave("unemployment6.png", path="./plots/", width=12, height=7)
+
+# Plot 7: Same as before, but with zoom in to avoid outliers
+
+ggplot(current_plot_data, aes(x=month, y= monthly_deviation_from_mean)) +
+  geom_boxplot(aes(group=month))+
+  facet_wrap(~ measure, nrow=2, labeller = labeller(measure = 
+                                                      c("U-3 unemployment rate" = "U-3 unemployment rate (1948-2020)",
+                                                        "U-6 unemployment rate" = "U-6 unemployment rate (1994-2020)")
+  )) +
+  geom_hline(yintercept=0, color="red") +
+  labs(
+    title = "Average monthly deviaton from yearly unemployment rate in the US",
+    subtitle = "e.g. if the avg. unemployment rate in 2019 is 5%, but for February it is at 7%, the deviation is +2%",
+    x = "Month",
+    y = "Average monthly deviation from yearly unemployment rate in %"
+  ) +
+  coord_cartesian(ylim = c(-100, 100))
+
+
+ggsave("unemployment7.png", path="./plots/", width=12, height=7)
+
 #------------------------------------
 
 
